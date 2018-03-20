@@ -1,29 +1,31 @@
-import qhue, os, pprint, time, json, sys
+import qhue, os, time, json, sys
 from Method_SunSyncer import *
 from Method_Wakeup import *
 from LocationAwareness import *
 
 CRED_FILE = "qhue_username.txt"
-POLL_TIME = 5
-TRANS_THRESH = 60
-WAKEUP_THRESH = 30
-ALARM_H = 6
-ALARM_M = 30
 
 class HueAutomation(object):
 
-    def __init__(self, bridgeIP, lightConfig):
+    def __init__(self, bridgeIP, lightConfig, location):
         self.managedLights = {}
         self.bridgeIP = bridgeIP
+        self.location = location
 
         self.lightDesc = {}
-        for lightName, lightMethod in lightConfig.iteritems():
-            self.lightDesc[lightName] = getattr(sys.modules[__name__], "Method_" + lightMethod)()
+        for lightName, lightValDict in lightConfig.iteritems():
+            lightMethod = lightValDict["method"]
+            lightOpts = lightValDict["options"]
+            lightOpts["location"] = self.location
+            self.lightDesc[lightName] = self.construct_light(lightMethod, lightOpts)
 
-    def run(self):
+    def construct_light(self, methodName, options):
+        methodClass = getattr(sys.modules[__name__], "Method_" + methodName)
+        return methodClass(options)
+
+    def run(self, pollFrequency, timeFunc):
         username = self.get_username()
         bridge = qhue.Bridge(self.bridgeIP, username)
-        self.location = LocationAwareness()
 
         while (True):
             self.purge_lights(bridge)
@@ -31,15 +33,14 @@ class HueAutomation(object):
 
             # Iterate over lights
             for lightIdx, lightMethod in self.managedLights.iteritems():
-                args = self.args_for_method(lightMethod.__class__.__name__)
-                state = lightMethod.execute(args)
+                state = lightMethod.execute(timeFunc)
 
                 if 'ct' in state and 'on' in state and 'bri' in state:
                     bridge.lights[lightIdx].state(ct=state['ct'], on=state['on'], bri=state['bri'])
                 elif 'ct' in state:
                     bridge.lights[lightIdx].state(ct=state['ct'])
 
-            time.sleep(POLL_TIME)
+            time.sleep(pollFrequency)
 
     def purge_lights(self, bridge):
         for lightIdx in self.managedLights.keys():
@@ -60,28 +61,13 @@ class HueAutomation(object):
                         print ("Found light \"" + lightDetails['name'] + "\"")
                         self.managedLights[lightIdx] = self.lightDesc[lightDetails['name']]
 
-    # TODO: Replace with a method to construct light methods
-    # which passes the 'args' as construction params.
-    # Args should be retrieved from config file.
-    def args_for_method(self, methodName):
-        args = {}
-        if methodName == "Method_SunSyncer":
-            args['timezone'] = self.location.get_timezone()
-            args['sun'] = self.location.get_sun()
-            args['threshold'] = TRANS_THRESH
-        elif methodName == "Method_Wakeup":
-            args['period'] = WAKEUP_THRESH
-            args['alarm'] = datetime.time(hour=ALARM_H, minute=ALARM_M)
-
-        return args
-
     def get_username(self):
         if not os.path.exists(CRED_FILE):
             while True:
                 try:
-                    username = qhue.create_new_username(BRIDGE_IP)
+                    username = qhue.create_new_username(self.bridgeIP)
                     break
-                except QhueException as e:
+                except qhue.QhueException as e:
                     print("Error: {}".format(e))
 
             with open(CRED_FILE, "w") as cred_file:
@@ -92,15 +78,26 @@ class HueAutomation(object):
 
         return username
 
+def time_getter():
+    return datetime.datetime.now()
+
 if __name__ == "__main__":
     bridgeIP = None
+    location = None
     lightConfig = {}
 
     with open("config.json") as configFile:
         config = json.load(configFile)
         bridgeIP = config["bridgeAddress"]
         lightConfig = config["lights"]
+        city = config["city"]
+        pollFreq = config["pollFrequency"]
 
-    automation = HueAutomation(bridgeIP, lightConfig)
-    automation.run()
+    if city == None:
+        print ("Config Error: Missing 'city' key in JSON configuration")
+        sys.exit(-1)
+
+    location = LocationAwareness(city)
+    automation = HueAutomation(bridgeIP, lightConfig, location)
+    automation.run(pollFrequency, time_getter)
 

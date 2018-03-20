@@ -1,6 +1,6 @@
 
 class Method(object):
 
-    def execute(self, args):
+    def execute(self, timeFunc):
         raise NotImplementedError()
 

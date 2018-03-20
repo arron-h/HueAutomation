@@ -6,70 +6,95 @@ FULL_COOL = 153
 
 class Method_SunSyncer_Test(unittest.TestCase):
 
-    def make_args(self, sunrise, sunset):
-        args = {}
-        args['timezone'] = None
-        args['threshold'] = 60
-        args['sun'] = {}
-        args['sun']['sunrise'] = sunrise
-        args['sun']['sunset'] = sunset
+    class MockLocation(object):
 
-        return args
+        class MockCity(object):
+            tz = None
+
+            def set_sun_vals(self, sunrise, sunset):
+                self.sunrise = sunrise
+                self.sunset = sunset
+
+            def sun(self):
+                return {
+                    "sunrise": self.sunrise,
+                    "sunset": self.sunset
+                }
+
+        def __init__(self):
+            self.city = self.MockCity()
+
+    def time_func(self, tz=None):
+        return datetime.datetime.now(tz)
+
+    def make_opts(self, sunrise, sunset):
+        opts = {}
+        opts['threshold'] = 60
+
+        mockLoc = self.MockLocation()
+        mockLoc.city.set_sun_vals(sunrise, sunset)
+        opts['location'] = mockLoc
+
+        return opts
 
     def test_FullWarmDuringEvening(self):
-        method = Method_SunSyncer()
-
         # Sunrise in 120 minutes
-        state = method.execute(self.make_args(
+        method = Method_SunSyncer(self.make_opts(
              datetime.datetime.now() + datetime.timedelta(minutes=120), # Sunrise
              datetime.datetime.now() + datetime.timedelta(minutes=240)  # Sunset
         ))
+
+        state = method.execute(self.time_func)
         self.assertEqual(FULL_WARM, state['ct'])
 
     def test_FullCoolDuringDay(self):
-        method = Method_SunSyncer()
-
         # Sunset in 120 minutes
-        state = method.execute(self.make_args(
+        method = Method_SunSyncer(self.make_opts(
              datetime.datetime.now() - datetime.timedelta(minutes=120), # Sunrise
              datetime.datetime.now() + datetime.timedelta(minutes=120)  # Sunset
         ))
+
+        state = method.execute(self.time_func)
         self.assertEqual(FULL_COOL, state['ct'])
 
     def test_TransitionsWarmToCoolAM(self):
-        method = Method_SunSyncer()
-
         # Sunrise 30 minutes ago
-        state = method.execute(self.make_args(
+        method = Method_SunSyncer(self.make_opts(
              datetime.datetime.now() - datetime.timedelta(minutes=30), # Sunrise
              datetime.datetime.now() + datetime.timedelta(minutes=240)  # Sunset
         ))
-        expected = FULL_COOL + (FULL_WARM - FULL_COOL) / 2.0
-        self.assertEqual(expected, state['ct'])
+
+        state = method.execute(self.time_func)
+        expected = int(FULL_COOL + (FULL_WARM - FULL_COOL) / 2.0)
+        self.assertEqual(expected, int(state['ct']))
 
         # Sunrise 45 minutes ago
-        state = method.execute(self.make_args(
+        method = Method_SunSyncer(self.make_opts(
              datetime.datetime.now() - datetime.timedelta(minutes=45), # Sunrise
              datetime.datetime.now() + datetime.timedelta(minutes=240)  # Sunset
         ))
-        expected = FULL_COOL + (FULL_WARM - FULL_COOL) / 4.0
-        self.assertEqual(expected, state['ct'])
+
+        state = method.execute(self.time_func)
+        expected = int(FULL_COOL + (FULL_WARM - FULL_COOL) / 4.0)
+        self.assertEqual(expected, int(state['ct']))
 
     def test_TransitionsCoolToWarmPM(self):
-        method = Method_SunSyncer()
-
         # Sunset in 30 minutes
-        state = method.execute(self.make_args(
+        method = Method_SunSyncer(self.make_opts(
              datetime.datetime.now() - datetime.timedelta(minutes=240), # Sunrise
              datetime.datetime.now() + datetime.timedelta(minutes=30)  # Sunset
         ))
-        expected = FULL_COOL + (FULL_WARM - FULL_COOL) / 2.0
+
+        state = method.execute(self.time_func)
+        expected = round(FULL_COOL + (FULL_WARM - FULL_COOL) / 2.0, 2)
         self.assertEqual(expected, state['ct'])
 
         # Sunset in 15 minutes
-        state = method.execute(self.make_args(
+        method = Method_SunSyncer(self.make_opts(
              datetime.datetime.now() - datetime.timedelta(minutes=240), # Sunrise
              datetime.datetime.now() + datetime.timedelta(minutes=15)  # Sunset
         ))
+
+        state = method.execute(self.time_func)
         expected = round(FULL_COOL + (FULL_WARM - FULL_COOL) / 1.3333333, 2)
         self.assertEqual(expected, state['ct'])

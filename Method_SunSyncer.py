@@ -1,8 +1,12 @@
 from Method import Method
 from HueStateValues import HueStateValues
-import datetime, math
+import datetime
 
 class Method_SunSyncer(Method):
+
+    def __init__(self, options):
+        self.location = options["location"]
+        self.threshold = options["threshold"]
 
     def lerp(self, start, end, delta):
         return start + delta * (end - start)
@@ -10,21 +14,20 @@ class Method_SunSyncer(Method):
     def interpolate_ct(self, t):
         return self.lerp(HueStateValues.CT_COOL, HueStateValues.CT_WARM, t)
 
-    def execute(self, args):
-        sun = args['sun']
-        timezone = args['timezone']
-        threshold = args['threshold']
+    def execute(self, timeFunc):
+        sun = self.location.city.sun()
+        timezone = self.location.city.tz
 
         state = {
             'ct': HueStateValues.DEFAULT_CT,
         }
 
-        timeNow = datetime.datetime.now(timezone)
+        timeNow = timeFunc(timezone)
         if timeNow <= sun['sunrise'] or timeNow >= sun['sunset']:
             state['ct'] = HueStateValues.CT_WARM
         else:
-            srPlusHour = sun['sunrise'] + datetime.timedelta(minutes=threshold)
-            ssMinusHour = sun['sunset'] - datetime.timedelta(minutes=threshold)
+            srPlusHour = sun['sunrise'] + datetime.timedelta(minutes=self.threshold)
+            ssMinusHour = sun['sunset'] - datetime.timedelta(minutes=self.threshold)
 
             if timeNow >= srPlusHour and timeNow <= ssMinusHour:
                 state['ct'] = HueStateValues.CT_COOL
@@ -35,7 +38,7 @@ class Method_SunSyncer(Method):
                 else:
                     deltaTime = timeNow - ssMinusHour
 
-                unitDelta = deltaTime.seconds / (float(threshold) * 60.0)
+                unitDelta = deltaTime.seconds / (float(self.threshold) * 60.0)
                 state['ct'] = self.interpolate_ct(unitDelta)
 
         return state

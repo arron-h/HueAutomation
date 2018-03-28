@@ -26,16 +26,18 @@ class Method_Wakeup(Method):
             'bri': HueStateValues.DEFAULT_BRI
         }
 
-        alarmToday = datetime.datetime.combine(datetime.date.today(), self.alarm)
+        nextAlarm = datetime.datetime.combine(datetime.date.today(), self.alarm)
+        if timeNow.time() > self.alarm:
+            nextAlarm = nextAlarm + datetime.timedelta(days=1)
 
-        if timeNow.time() < (alarmToday - datetime.timedelta(minutes=self.period)).time():
+        if timeNow.time() < (nextAlarm - datetime.timedelta(minutes=self.period)).time():
             state['on'] = False
         elif timeNow.time() >= self.alarm:
             state['ct'] = HueStateValues.CT_COOL
             state['bri'] = HueStateValues.BRI_MAX
         else:
             # Interpolate
-            deltaTime = alarmToday - timeNow
+            deltaTime = nextAlarm - timeNow
             unitDelta = deltaTime.seconds / (float(self.period) * float(60.0))
 
             state['ct'] = self.interpolate_ct(unitDelta)

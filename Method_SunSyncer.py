@@ -12,7 +12,7 @@ class Method_SunSyncer(Method):
         return start + delta * (end - start)
 
     def interpolate_ct(self, t):
-        return self.lerp(HueStateValues.CT_COOL, HueStateValues.CT_WARM, t)
+        return self.lerp(HueStateValues.CT_WARM, HueStateValues.CT_COOL, t)
 
     def execute(self, timeFunc):
         sun = self.location.city.sun()
@@ -39,6 +39,8 @@ class Method_SunSyncer(Method):
                     deltaTime = timeNow - ssMinusHour
 
                 unitDelta = deltaTime.seconds / (float(self.threshold) * 60.0)
-                state['ct'] = self.interpolate_ct(unitDelta)
+                state['ct'] = int(self.interpolate_ct(unitDelta))
+
+                print "[" + str(timeNow) + "]" + " (delta = " + str(deltaTime) + ") -- Interpolated ct = " + str(state["ct"]) + "(" + str(unitDelta * 100) + "%)"
 
         return state

@@ -75,7 +75,7 @@ class Method_SunSyncer_Test(unittest.TestCase):
         ))
 
         state = method.execute(self.time_func)
-        expected = int(FULL_COOL + (FULL_WARM - FULL_COOL) / 4.0)
+        expected = int(FULL_COOL + (FULL_WARM - FULL_COOL) / 1.33333333)
         self.assertEqual(expected, int(state['ct']))
 
     def test_TransitionsCoolToWarmPM(self):
@@ -86,8 +86,8 @@ class Method_SunSyncer_Test(unittest.TestCase):
         ))
 
         state = method.execute(self.time_func)
-        expected = round(FULL_COOL + (FULL_WARM - FULL_COOL) / 2.0, 2)
-        self.assertEqual(expected, state['ct'])
+        expected = int(FULL_COOL + (FULL_WARM - FULL_COOL) / 2.0)
+        self.assertEqual(expected, int(state['ct']))
 
         # Sunset in 15 minutes
         method = Method_SunSyncer(self.make_opts(
@@ -96,5 +96,5 @@ class Method_SunSyncer_Test(unittest.TestCase):
         ))
 
         state = method.execute(self.time_func)
-        expected = round(FULL_COOL + (FULL_WARM - FULL_COOL) / 1.3333333, 2)
-        self.assertEqual(expected, state['ct'])
+        expected = int(FULL_COOL + (FULL_WARM - FULL_COOL) / 4.0)
+        self.assertEqual(expected, int(state['ct']))

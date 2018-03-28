@@ -78,8 +78,8 @@ class HueAutomation(object):
 
         return username
 
-def time_getter():
-    return datetime.datetime.now()
+def time_getter(timezone):
+    return datetime.datetime.now(timezone)
 
 if __name__ == "__main__":
     bridgeIP = None
@@ -91,7 +91,7 @@ if __name__ == "__main__":
         bridgeIP = config["bridgeAddress"]
         lightConfig = config["lights"]
         city = config["city"]
-        pollFreq = config["pollFrequency"]
+        pollFrequency = config["pollFrequency"]
 
     if city == None:
         print ("Config Error: Missing 'city' key in JSON configuration")

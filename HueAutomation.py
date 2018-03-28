@@ -79,9 +79,9 @@ class HueAutomation(object):
         if not os.path.exists(CRED_FILE):
             while True:
                 try:
-                    username = qhue.create_new_username(BRIDGE_IP)
+                    username = qhue.create_new_username(self.bridgeIP)
                     break
-                except QhueException as e:
+                except qhue.QhueException as e:
                     print("Error: {}".format(e))
 
             with open(CRED_FILE, "w") as cred_file:
